@@ -1,7 +1,7 @@
 
 import json
 import copy
-from collections import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from smrt import make_model, make_snowpack, sensor_list, make_ice_column
@@ -76,7 +76,6 @@ def prepare_snowpack(annual_temperature, season_temperature, ice_thickness, dens
         raise Exception("microstructure_model!!")
 
     # water substrate
-
     sp = make_snowpack(thickness=thickness, density=density, temperature=temperature,
                        microstructure_model=microstructure_model, **microstructure,
                        ssa_value=ssa)  # just to keep it in memory, not used with TS microstructure
@@ -156,14 +155,19 @@ def prepare_snowpack_v2(annual_temperature, season_temperature, ice_thickness,
         raise Exception("microstructure_model!!")
 
     # water substrate
-
     sp = make_snowpack(thickness=thickness, density=density, temperature=temperature,
                        microstructure_model=microstructure_model, **microstructure,
                        )
 
+
     # add the water substrate (does NOT account for the pressure on temperature)
     if add_water_substrate:
         sp += make_ice_column("firstyear", [], 273.15 - 1.8, "", add_water_substrate=True)
+        if (sp.layers[-1].thickness == 0) and (sp.nlayer > 1):
+            # this is kinda bug that needs to be solved in SMRT but is there.
+            # Remove this layers
+            sp.layers.pop()
+            sp.interfaces.pop()
 
     return sp
 
@@ -369,7 +373,7 @@ def run_model(sensor, sp, channels=None, error_handling='nan'):
     else:
         raise Exception("Invalid sensor")
 
-    m = make_model("symsce_torquato21", "odort",
+    m = make_model("symsce_torquato21", "dort",
                    # emmodel_options=dict(scaled=False),
                    rtsolver_options=dict(prune_deep_snowpack=5, error_handling=error_handling))
     res = m.run(sensor, sp)
